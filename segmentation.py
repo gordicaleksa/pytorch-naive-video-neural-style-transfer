@@ -157,11 +157,14 @@ def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, ot
     else:
         print('Skipping combining with masks, already done.')
 
+    return {"dump_path_bkg_masked": dump_path_bkg_masked, "dump_path_person_masked": dump_path_person_masked}
 
-def create_videos():
-    pic_path_pattern_bkg = os.path.join(final_dest_bkg, 'combined_%04d' + format)
-    pic_path_pattern_bkg_inv = os.path.join(final_dest_bkg_inv, 'combined_%04d' + format)
-    pic_path_pattern_stylized = os.path.join(dump_dest, '%04d' + format)
+
+def create_videos(relevant_directories, delete_source_imagery, frame_name_format):
+    combined_img_background_pattern = os.path.join(relevant_directories['combined_img_background_path'], frame_name_format)
+    combined_img_person_pattern = os.path.join(relevant_directories['combined_img_background_path'], frame_name_format)
+    stylized_frames_path_pattern = os.path.join(relevant_directories['stylized_frames_path'], frame_name_format)
+
     out_video_path_bkg = os.path.join(final_dest_bkg, video_name + '_stylized_human_' + model_name + '.mp4')
     out_video_path_bkg_inv = os.path.join(final_dest_bkg_inv, video_name + '_stylized_bkg_' + model_name + '.mp4')
     out_video_path_stylized = os.path.join(dump_dest, video_name + '_full-style_' + model_name + '.mp4')
@@ -178,22 +181,11 @@ def create_videos():
          'libx264', '-crf', '25', '-pix_fmt', 'yuv420p', '-c:a', 'copy', out_video_path_stylized])
     print('Creating videos done.')
 
-    if not using_big_res:
-        resized_videos_paths = modify_paths([out_video_path_bkg, out_video_path_bkg_inv, out_video_path_stylized])
-        subprocess.call([ffmpeg_path, '-i', out_video_path_bkg, '-vf', 'scale=1920:1080', resized_videos_paths[0]])
-        subprocess.call([ffmpeg_path, '-i', out_video_path_bkg_inv, '-vf', 'scale=1920:1080', resized_videos_paths[1]])
-        subprocess.call([ffmpeg_path, '-i', out_video_path_stylized, '-vf', 'scale=1920:1080', resized_videos_paths[2]])
-        print('Done resizing videos')
-
-    if args.should_delete_images:
+    if delete_source_imagery:
         [os.remove(os.path.join(final_dest_bkg, file)) for file in os.listdir(final_dest_bkg) if file.endswith(format)]
-        [os.remove(os.path.join(final_dest_bkg_inv, file)) for file in os.listdir(final_dest_bkg_inv) if
-         file.endswith(format)]
-        # todo: tmp disabled
-        # [os.remove(os.path.join(dump_dest, file)) for file in os.listdir(dump_dest) if file.endswith(format)]
-        print('Deleting images done.')
-    else:
-        print('Won"t delete images')
+        [os.remove(os.path.join(final_dest_bkg_inv, file)) for file in os.listdir(final_dest_bkg_inv) if file.endswith(format)]
+        [os.remove(os.path.join(dump_dest, file)) for file in os.listdir(dump_dest) if file.endswith(format)]
+        print('Deleting stylized/combined source images done.')
 
 
 def post_process_mask(mask):
@@ -277,6 +269,7 @@ if __name__ == "__main__":
     #
     parser = argparse.ArgumentParser()
     parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch", default=12)
+    parser.add_argument("--delete_source_imagery", type=bool, help="Should delete imagery after videos are created", default=False)
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -341,10 +334,16 @@ if __name__ == "__main__":
                 relevant_directories['audio_path'] = audio_dump_path
 
                 ts = time.time()
-                stylized_frames_mask_combiner(relevant_directories, frame_extension)
+                combined_dirs = stylized_frames_mask_combiner(relevant_directories, frame_extension)
                 print(f'Time elapsed masking stylized imagery: {(time.time() - ts):.3f} [s].')
+
                 #
                 # step5: Create videos
                 #
+                relevant_directories.update(combined_dirs)
+                
+                ts = time.time()
+                create_videos(relevant_directories, args.delete_source_imagery, frame_name_format)
+                print(f'Time elapsed creating videos: {(time.time() - ts):.3f} [s].')
             else:
                 raise Exception(f'{ffmpeg} not found in the system path, aborting.')
