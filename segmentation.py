@@ -102,52 +102,60 @@ def stylization():
     return {'dummy': -1}
 
 
-def stylized_frames_mask_combiner(relevant_directories, other_style_clip, frame_name_format):
+def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, other_stylized_frames_dir=None):
     print(f'Combining {processed_video_dir}.')
 
-    dump_path = os.path.join(relevant_directories['stylized_frames_path'], os.path.pardir)
+    # in dirs
+    frames_dir = relevant_directories['frames_path']
+    mask_frames_dir = relevant_directories['processed_masks_dump_path']
+    stylized_frames_dir = relevant_directories['stylized_frames_path']
+
+    # out dirs (we'll dump combined imagery here)
+    dump_path = os.path.join(stylized_frames_dir, os.path.pardir)
     dump_path_bkg_masked = os.path.join(dump_path, 'composed_background_masked')
     dump_path_person_masked = os.path.join(dump_path, 'composed_person_masked')
     os.makedirs(dump_path_bkg_masked, exist_ok=True)
     os.makedirs(dump_path_person_masked, exist_ok=True)
 
-    if os.path.exists(second_style_path):
-        second_dir = second_style_path
+    # if other_stylized_frames_path exists overlay frames are differently styled frames and not original frames
+    if other_stylized_frames_dir is not None:
+        overlay_frames_dir = other_stylized_frames_dir
     else:
-        second_dir = content_pics
-        
+        overlay_frames_dir = frames_dir
+
     if len(os.listdir(dump_path_bkg_masked)) == 0 and len(os.listdir(dump_path_person_masked)) == 0:
-        for cnt, (path1, path2, path3) in enumerate(zip(os.listdir(dump_dest), os.listdir(mask_dest), os.listdir(second_dir))):
-            s_img_path = os.path.join(dump_dest, path1)
-            m_img_path = os.path.join(mask_dest, path2)
-            c_img_path = os.path.join(second_dir, path3)
+        for cnt, (name1, name2, name3) in enumerate(zip(os.listdir(stylized_frames_dir), os.listdir(mask_frames_dir), os.listdir(overlay_frames_dir))):
+            s_img_path = os.path.join(stylized_frames_dir, name1)  # stylized original frame image
+            m_img_path = os.path.join(mask_frames_dir, name2)  # mask image
+            o_img_path = os.path.join(overlay_frames_dir, name3)  # overlay image
+
+            # todo: we'll import load_image from the submodule if that path turns out feasible
+            # load input imagery
             s_img = utils.load_image(s_img_path)
             m_img = utils.load_image(m_img_path)
             s_h, s_w = s_img.shape[:2]
             m_img = cv.resize(m_img, (s_w, s_h))
-            c_img = utils.load_image(c_img_path)
-            s_img_inv = s_img.copy()
+            o_img = utils.load_image(o_img_path)
 
-            mask = m_img == 0
-            mask_inv = m_img == 255
+            # prepare canvas imagery
+            combined_img_background = s_img.copy()
+            combined_img_person = s_img.copy()
 
-            s_img_inv[mask_inv] = c_img[mask_inv]
-            s_img[mask] = c_img[mask]
+            # create masks
+            background_mask = m_img == 0
+            person_mask = m_img == 255
 
-            out_path = os.path.join(dump_path_bkg_masked, 'combined_' + str(cnt).zfill(4) + format)
-            out_path_inv = os.path.join(dump_path_person_masked, 'combined_' + str(cnt).zfill(4) + format)
-            # print(out_path)
-            img = Image.fromarray(s_img)
-            img.save(out_path)
+            # apply masks
+            combined_img_background[background_mask] = o_img[background_mask]
+            combined_img_person[person_mask] = o_img[person_mask]
 
-            img_inv = Image.fromarray(s_img_inv)
-            img_inv.save(out_path_inv)
-
-            # plt.imshow(s_img)
-            # plt.show()
-        print('Done making background pics.')
+            # save combined imagery
+            combined_img_background_path = os.path.join(dump_path_bkg_masked, str(cnt).zfill(FILE_NAME_NUM_DIGITS) + dump_frame_extension)
+            combined_img_person_path = os.path.join(dump_path_person_masked, str(cnt).zfill(FILE_NAME_NUM_DIGITS) + dump_frame_extension)
+            cv.imwrite(combined_img_background_path, combined_img_background)
+            cv.imwrite(combined_img_person_path, combined_img_person)
     else:
-        print('Skipping, background pics already combined.')
+        print('Skipping combining with masks, already done.')
 
 
 def create_videos():
@@ -245,13 +253,12 @@ def extract_masks_from_frames(model, device, processed_video_dir, frames_path, b
                     processed_mask = post_process_mask(mask)  # simple heuristics (connected components, etc.)
 
                     filename = str(batch_id*batch_size+j).zfill(FILE_NAME_NUM_DIGITS) + mask_extension
-                    # ::-1 because opencv expects BGR (and not RGB) format...
                     cv.imwrite(os.path.join(masks_dump_path, filename), mask)
                     cv.imwrite(os.path.join(processed_masks_dump_path, filename), processed_mask)
     else:
         print('Skipping mask computation, already done.')
 
-    return {'masks_dump_path': masks_dump_path, 'processed_masks_dump_path': processed_masks_dump_path}
+    return {'processed_masks_dump_path': processed_masks_dump_path}
 
 
 # todo: should I add fast NST as a submodule project?
@@ -304,8 +311,9 @@ if __name__ == "__main__":
                 # step1: Extract frames from the videos as well as audio file
                 #
                 if len(os.listdir(frames_path)) == 0:
+                    ts = time.time()
                     subprocess.call([ffmpeg, '-i', video_path, '-r', str(fps), out_frame_pattern, '-c:a', 'copy', audio_dump_path])
-                    print('Done splitting video into frames and extracting audio file.')
+                    print(f'Time elapsed extracting frames and audio: {(time.time() - ts):.3f} [s].')
                 else:
                     print('Skip splitting video into frames and audio. Already done.')
 
@@ -327,12 +335,13 @@ if __name__ == "__main__":
                 # step4: Combine stylized frames and masks
                 #
                 relevant_directories = {}
+                relevant_directories['frames_path'] = frames_path
                 relevant_directories.update(mask_dirs)
                 relevant_directories.update(style_dir)
                 relevant_directories['audio_path'] = audio_dump_path
 
                 ts = time.time()
-                stylized_frames_mask_combiner(relevant_directories, frame_name_format)
+                stylized_frames_mask_combiner(relevant_directories, frame_extension)
                 print(f'Time elapsed masking stylized imagery: {(time.time() - ts):.3f} [s].')
                 #
                 # step5: Create videos
