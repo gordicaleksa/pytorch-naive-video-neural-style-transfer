@@ -160,31 +160,36 @@ def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, ot
     return {"dump_path_bkg_masked": dump_path_bkg_masked, "dump_path_person_masked": dump_path_person_masked}
 
 
-def create_videos(relevant_directories, delete_source_imagery, frame_name_format):
-    combined_img_background_pattern = os.path.join(relevant_directories['combined_img_background_path'], frame_name_format)
-    combined_img_person_pattern = os.path.join(relevant_directories['combined_img_background_path'], frame_name_format)
-    stylized_frames_path_pattern = os.path.join(relevant_directories['stylized_frames_path'], frame_name_format)
+def create_videos(relevant_directories, frame_name_format, delete_source_imagery):
+    combined_img_bkg_pattern = os.path.join(relevant_directories['dump_path_bkg_masked'], frame_name_format)
+    combined_img_person_pattern = os.path.join(relevant_directories['dump_path_person_masked'], frame_name_format)
+    stylized_frame_pattern = os.path.join(relevant_directories['stylized_frames_path'], frame_name_format)
 
-    out_video_path_bkg = os.path.join(final_dest_bkg, video_name + '_stylized_human_' + model_name + '.mp4')
-    out_video_path_bkg_inv = os.path.join(final_dest_bkg_inv, video_name + '_stylized_bkg_' + model_name + '.mp4')
-    out_video_path_stylized = os.path.join(dump_dest, video_name + '_full-style_' + model_name + '.mp4')
+    dump_path = os.path.join(relevant_directories['stylized_frames_path'], os.path.pardir)
+    combined_img_bkg_video_path = os.path.join(dump_path, 'overlayed_bkg.mp4')
+    combined_img_person_video_path = os.path.join(dump_path, 'overlayed_person.mp4')
+    stylized_frame_video_path = os.path.join(dump_path, 'stylized.mp4')
 
-    # after image2 it went like this: '-s', '1920x1080' '960x540'
-    subprocess.call(
-        [ffmpeg_path, '-r', str(30), '-f', 'image2', '-i', pic_path_pattern_bkg, '-i', in_audio_path, '-vcodec',
-         'libx264', '-crf', '25', '-pix_fmt', 'yuv420p', '-c:a', 'copy', out_video_path_bkg])
-    subprocess.call(
-        [ffmpeg_path, '-r', str(30), '-f', 'image2', '-i', pic_path_pattern_bkg_inv, '-i', in_audio_path, '-vcodec',
-         'libx264', '-crf', '25', '-pix_fmt', 'yuv420p', '-c:a', 'copy', out_video_path_bkg_inv])
-    subprocess.call(
-        [ffmpeg_path, '-r', str(30), '-f', 'image2', '-i', pic_path_pattern_stylized, '-i', in_audio_path, '-vcodec',
-         'libx264', '-crf', '25', '-pix_fmt', 'yuv420p', '-c:a', 'copy', out_video_path_stylized])
-    print('Creating videos done.')
+    ffmpeg = 'ffmpeg'
+    if shutil.which(ffmpeg):  # if ffmpeg is in system path
+        audio_path = relevant_directories['audio_path']
+
+        def build_ffmpeg_call(img_pattern, audio_path, out_video_path):
+            input_options = ['-r', str(fps), '-i', img_pattern, '-i', audio_path]
+            encoding_options = ['-c:v', 'libx264', '-crf', '25', '-pix_fmt', 'yuv420p', '-c:a', 'copy']
+            pad_options = ['-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2']  # libx264 won't work for odd dimensions
+            return [ffmpeg] + input_options + encoding_options + pad_options + [out_video_path]
+
+        subprocess.call(build_ffmpeg_call(combined_img_bkg_pattern, audio_path, combined_img_bkg_video_path))
+        subprocess.call(build_ffmpeg_call(combined_img_person_pattern, audio_path, combined_img_person_video_path))
+        subprocess.call(build_ffmpeg_call(stylized_frame_pattern, audio_path, stylized_frame_video_path))
+    else:
+        raise Exception(f'{ffmpeg} not found in the system path, aborting.')
 
     if delete_source_imagery:
-        [os.remove(os.path.join(final_dest_bkg, file)) for file in os.listdir(final_dest_bkg) if file.endswith(format)]
-        [os.remove(os.path.join(final_dest_bkg_inv, file)) for file in os.listdir(final_dest_bkg_inv) if file.endswith(format)]
-        [os.remove(os.path.join(dump_dest, file)) for file in os.listdir(dump_dest) if file.endswith(format)]
+        shutil.rmtree(relevant_directories['dump_path_bkg_masked'])
+        shutil.rmtree(relevant_directories['dump_path_person_masked'])
+        shutil.rmtree(relevant_directories['stylized_frames_path'])
         print('Deleting stylized/combined source images done.')
 
 
@@ -341,9 +346,9 @@ if __name__ == "__main__":
                 # step5: Create videos
                 #
                 relevant_directories.update(combined_dirs)
-                
+
                 ts = time.time()
-                create_videos(relevant_directories, args.delete_source_imagery, frame_name_format)
+                create_videos(relevant_directories, frame_name_format, args.delete_source_imagery)
                 print(f'Time elapsed creating videos: {(time.time() - ts):.3f} [s].')
             else:
                 raise Exception(f'{ffmpeg} not found in the system path, aborting.')
