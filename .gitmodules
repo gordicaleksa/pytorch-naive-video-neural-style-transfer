@@ -1,0 +1,3 @@
+[submodule "pytorch-nst-feedforward"]
+	path = pytorch-nst-feedforward
+	url = https://github.com/gordicaleksa/pytorch-nst-feedforward

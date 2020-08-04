@@ -97,9 +97,15 @@ def modify_paths(paths):
 #
 
 
-def stylization():
-    print('dummy yet to implement')
-    return {'dummy': -1}
+def stylization(frames_path):
+    model_name = 'mosaic_4e5_e2.pth'
+    stylized_frames_dump_dir = os.path.join(frames_path, os.path.pardir, os.path.pardir, model_name.split('.')[0], 'stylized')
+
+    for frame_name in os.listdir(frames_path):
+        frame_path = os.path.join(frames_path, frame_name)
+
+
+    return {"stylized_frames_path": stylized_frames_dump_dir}
 
 
 def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, other_stylized_frames_dir=None):
@@ -124,7 +130,8 @@ def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, ot
         overlay_frames_dir = frames_dir
 
     if len(os.listdir(dump_path_bkg_masked)) == 0 and len(os.listdir(dump_path_person_masked)) == 0:
-        for cnt, (name1, name2, name3) in enumerate(zip(os.listdir(stylized_frames_dir), os.listdir(mask_frames_dir), os.listdir(overlay_frames_dir))):
+        for cnt, (name1, name2, name3) in enumerate(zip(sorted(os.listdir(stylized_frames_dir)), sorted(os.listdir(mask_frames_dir)), sorted(os.listdir(overlay_frames_dir))))
+            assert name1 == name2 == name3, f'Expected same names but got {name1}, {name2} and {name3}.'
             s_img_path = os.path.join(stylized_frames_dir, name1)  # stylized original frame image
             m_img_path = os.path.join(mask_frames_dir, name2)  # mask image
             o_img_path = os.path.join(overlay_frames_dir, name3)  # overlay image
@@ -326,7 +333,7 @@ if __name__ == "__main__":
                 # step3: Compute stylized frames
                 #
                 ts = time.time()
-                style_dir = stylization()
+                style_dir = stylization(frames_path)
                 print(f'Time elapsed stylizing imagery: {(time.time() - ts):.3f} [s].')
 
                 #
