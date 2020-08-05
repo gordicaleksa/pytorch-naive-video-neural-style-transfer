@@ -3,6 +3,9 @@ import subprocess
 import time
 import os
 import shutil
+import sys
+# Enables this file to see packages from pytorch-nst-feedforward submodule (e.g. utils)
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pytorch-nst-feedforward'))
 
 
 from torchvision import models
@@ -15,6 +18,10 @@ import numpy as np
 import cv2 as cv
 
 
+# Using functions from utils package from pytorch-nst-feedforward submodule like load_image
+from utils import utils
+
+
 SUPPORTED_VIDEO_EXTENSIONS = ['.mp4']
 
 
@@ -25,85 +32,16 @@ IMAGENET_MEAN_1 = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD_1 = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
-def is_big_resolution(content_pics):
-    img_path = os.path.join(content_pics, os.listdir(content_pics)[0])
-    img = utils.load_image(img_path)
-    h, w = img.shape[:2]
-    return w == 1920
-
-
-def modify_paths(paths):
-    new_paths = []
-    for path in paths:
-        base, name = os.path.split(path)
-        name = '_res_' + name
-        new_path = os.path.join(base, name)
-        new_paths.append(new_path)
-
-    return new_paths
-
-
-#
-# stylization part
-#
-
-# device = torch.device("cuda" if args.cuda else "cpu")
-#
-# content_transform = transforms.Compose([
-#     transforms.ToTensor(),
-#     # transforms.Lambda(lambda x: x.mul(255))
-# ])
-# dataset = datasets.ImageFolder(frames_path, transform=content_transform)
-# num_of_frames = len(dataset)
-# using_big_res = is_big_resolution(content_pics)
-# batch_size = 3 if using_big_res else 14
-# loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-# print('Using batch size = {}'.format(batch_size))
-#
-# dump_dest = os.path.join(dump_path, 'stylized')
-# os.makedirs(dump_dest, exist_ok=True)
-#
-# if args.model.endswith(".onnx"):
-#     # output = stylize_onnx_caffe2(content_image, args)
-#     print('nicee.')
-# else:
-#     with torch.no_grad():
-#         style_model = TransformerNet()
-#         state_dict = torch.load(args.model)
-#         # remove saved deprecated running_* keys in InstanceNorm from the checkpoint
-#         for k in list(state_dict.keys()):
-#             if re.search(r'in\d+\.running_(mean|var)$', k):
-#                 del state_dict[k]
-#         style_model.load_state_dict(state_dict)
-#         style_model.to(device)
-#         if args.export_onnx:
-#             assert args.export_onnx.endswith(".onnx"), "Export model file should end with .onnx"
-#             # output = torch.onnx._export(style_model, content_image, args.export_onnx).cpu()
-#         else:
-#             if len(os.listdir(dump_dest)) == 0:
-#                 for i, (imgs, labels) in enumerate(loader):
-#                     imgs = imgs.to(device)
-#                     out_cpu_batch = style_model(imgs).cpu().numpy()
-#                     ts = time.time()
-#                     for j, styled_img in enumerate(out_cpu_batch):
-#                         out_path = os.path.join(dump_dest, str(i*batch_size+j).zfill(4) + format)
-#                         utils.save_image_from_vid(out_path, styled_img)
-#                     print('{:04d}/{:04d} , processing batch took {:.3f}'.format((i+1)*batch_size, num_of_frames, time.time()-ts))
-#             else:
-#                 print('Skipping, already stilyzed.')
-
-#
-# end of stylization part
-#
-
-
 def stylization(frames_path):
     model_name = 'mosaic_4e5_e2.pth'
     stylized_frames_dump_dir = os.path.join(frames_path, os.path.pardir, os.path.pardir, model_name.split('.')[0], 'stylized')
 
-    for frame_name in os.listdir(frames_path):
-        frame_path = os.path.join(frames_path, frame_name)
-
+    if len(os.listdir(stylized_frames_dump_dir)) == 0:
+        for frame_name in os.listdir(frames_path):
+            frame_path = os.path.join(frames_path, frame_name)
+            subprocess.call(['python', 'pytorch-nst-feedforward/stylization_script.py', '--content_img_name', frame_path, '--img_width', '500', '--model_name', model_name, '--redirected_output', stylized_frames_dump_dir])
+    else:
+        print('Skipping frame stylization, already done.')
 
     return {"stylized_frames_path": stylized_frames_dump_dir}
 
@@ -130,27 +68,23 @@ def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, ot
         overlay_frames_dir = frames_dir
 
     if len(os.listdir(dump_path_bkg_masked)) == 0 and len(os.listdir(dump_path_person_masked)) == 0:
-        for cnt, (name1, name2, name3) in enumerate(zip(sorted(os.listdir(stylized_frames_dir)), sorted(os.listdir(mask_frames_dir)), sorted(os.listdir(overlay_frames_dir))))
-            assert name1 == name2 == name3, f'Expected same names but got {name1}, {name2} and {name3}.'
+        for cnt, (name1, name2, name3) in enumerate(zip(sorted(os.listdir(stylized_frames_dir)), sorted(os.listdir(mask_frames_dir)), sorted(os.listdir(overlay_frames_dir)))):
             s_img_path = os.path.join(stylized_frames_dir, name1)  # stylized original frame image
             m_img_path = os.path.join(mask_frames_dir, name2)  # mask image
             o_img_path = os.path.join(overlay_frames_dir, name3)  # overlay image
 
-            # todo: we'll import load_image from the submodule if that path turns out feasible
             # load input imagery
             s_img = utils.load_image(s_img_path)
-            m_img = utils.load_image(m_img_path)
-            s_h, s_w = s_img.shape[:2]
-            m_img = cv.resize(m_img, (s_w, s_h))
-            o_img = utils.load_image(o_img_path)
+            m_img = utils.load_image(m_img_path, target_shape=s_img.shape[:2])
+            o_img = utils.load_image(o_img_path, target_shape=s_img.shape[:2])
 
             # prepare canvas imagery
             combined_img_background = s_img.copy()
             combined_img_person = s_img.copy()
 
             # create masks
-            background_mask = m_img == 0
-            person_mask = m_img == 255
+            background_mask = m_img == 0.
+            person_mask = m_img == 1.
 
             # apply masks
             combined_img_background[background_mask] = o_img[background_mask]
@@ -159,8 +93,8 @@ def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, ot
             # save combined imagery
             combined_img_background_path = os.path.join(dump_path_bkg_masked, str(cnt).zfill(FILE_NAME_NUM_DIGITS) + dump_frame_extension)
             combined_img_person_path = os.path.join(dump_path_person_masked, str(cnt).zfill(FILE_NAME_NUM_DIGITS) + dump_frame_extension)
-            cv.imwrite(combined_img_background_path, combined_img_background)
-            cv.imwrite(combined_img_person_path, combined_img_person)
+            cv.imwrite(combined_img_background_path, (combined_img_background * 255).astype(np.uint8)[:, :, ::-1])
+            cv.imwrite(combined_img_person_path, (combined_img_person * 255).astype(np.uint8)[:, :, ::-1])
     else:
         print('Skipping combining with masks, already done.')
 
@@ -265,7 +199,6 @@ def extract_masks_from_frames(model, device, processed_video_dir, frames_path, b
     return {'processed_masks_dump_path': processed_masks_dump_path}
 
 
-# todo: should I add fast NST as a submodule project?
 if __name__ == "__main__":
     #
     # Fixed args - don't change these unless you have a good reason
@@ -317,7 +250,7 @@ if __name__ == "__main__":
                 #
                 if len(os.listdir(frames_path)) == 0:
                     ts = time.time()
-                    subprocess.call([ffmpeg, '-i', video_path, '-r', str(fps), out_frame_pattern, '-c:a', 'copy', audio_dump_path])
+                    subprocess.call([ffmpeg, '-i', video_path, '-r', str(fps), '-start_number', '0', out_frame_pattern, '-c:a', 'copy', audio_dump_path])
                     print(f'Time elapsed extracting frames and audio: {(time.time() - ts):.3f} [s].')
                 else:
                     print('Skip splitting video into frames and audio. Already done.')
