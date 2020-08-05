@@ -31,10 +31,20 @@ if __name__ == "__main__":
     #
     # Modifiable args
     #
+    # todo: mask size width/height?
     parser = argparse.ArgumentParser()
     parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch", default=12)
+    parser.add_argument("--mask_size", type=int, help="Segmentation mask size", default=540)
+    parser.add_argument("--img_width", type=int, help="Stylized images width", default=500)
+    parser.add_argument("--model_name", type=str, help="Model binary to use for stylization", default='mosaic_4e5_e2.pth')
     parser.add_argument("--delete_source_imagery", type=bool, help="Should delete imagery after videos are created", default=False)
     args = parser.parse_args()
+
+    # Basic error checking regarding nst submodule and model placement
+    nst_submodule_path = os.path.join(os.path.dirname(__file__), 'pytorch-nst-feedforward')
+    assert os.path.exists(nst_submodule_path), 'Please pull the pytorch-nst-feedforward submodule to use this project.'
+    model_path = os.path.join(nst_submodule_path, 'models', 'binaries', args.model_name)
+    assert os.path.exists(model_path), f'Could not find {model_path}. Make sure to first place the model in there.'
 
     #
     # For every video located under data/
@@ -72,15 +82,15 @@ if __name__ == "__main__":
                 # step2: Compute person masks and processed/refined masks
                 #
                 ts = time.time()
-                mask_dirs = extract_person_masks_from_frames(processed_video_dir, frames_path, args.segmentation_batch_size, mask_extension)
-                print('Stage 2/5 done (create person segmentation masks.')
+                mask_dirs = extract_person_masks_from_frames(processed_video_dir, frames_path, args.segmentation_batch_size, args.mask_size, mask_extension)
+                print('Stage 2/5 done (create person segmentation masks).')
                 print(f'Time elapsed computing masks: {(time.time() - ts):.3f} [s].')
 
                 #
                 # step3: Compute stylized frames
                 #
                 ts = time.time()
-                style_dir = stylization(frames_path)
+                style_dir = stylization(frames_path, args.model_name, args.img_width)
                 print('Stage 3/5 done (stylize dumped video frames).')
                 print(f'Time elapsed stylizing imagery: {(time.time() - ts):.3f} [s].')
 

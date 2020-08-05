@@ -13,6 +13,10 @@ import cv2 as cv
 from .constants import *
 
 
+# Using functions from utils package from pytorch-nst-feedforward submodule like load_image
+from utils import utils
+
+
 IMAGENET_MEAN_1 = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD_1 = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
@@ -48,11 +52,12 @@ def post_process_mask(mask):
     return processed_mask
 
 
-def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_size, mask_extension):
+def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_size, mask_size, mask_extension):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Currently the best segmentation model in PyTorch
+    # Currently the best segmentation model in PyTorch (officially implemented)
     segmentation_model = models.segmentation.deeplabv3_resnet101(pretrained=True).to(device).eval()
+    print(f'Number of trainable weights in the segmentation model: {utils.count_parameters(segmentation_model)}')
 
     masks_dump_path = os.path.join(processed_video_dir, 'masks')
     processed_masks_dump_path = os.path.join(processed_video_dir, 'processed_masks')
@@ -61,7 +66,7 @@ def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_siz
 
     PERSON_CHANNEL_INDEX = 15
     transform = transforms.Compose([
-        transforms.Resize(540),
+        transforms.Resize(mask_size),
         transforms.ToTensor(),
         transforms.Normalize(mean=IMAGENET_MEAN_1, std=IMAGENET_STD_1)
     ])
@@ -71,21 +76,26 @@ def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_siz
     if len(os.listdir(masks_dump_path)) == 0 and len(os.listdir(processed_masks_dump_path)) == 0:
         print('*' * 20, 'Person segmentation stage started', '*' * 20)
         with torch.no_grad():
-            for batch_id, (img_batch, _) in enumerate(frames_loader):
-                print(f'Processing batch {batch_id + 1} (batch size = {batch_size}).')
-                img_batch = img_batch.to(device)  # shape: (N, 3, H, W)
-                result_batch = segmentation_model(img_batch)['out'].to('cpu').numpy()  # shape: (N, 21, H, W) (21 - PASCAL VOC classes)
-                for j, out_cpu in enumerate(result_batch):
-                    # When for the pixel position (x, y) the biggest (un-normalized) probability
-                    # lies in the channel PERSON_CHANNEL_INDEX we set the mask pixel to True
-                    mask = np.argmax(out_cpu, axis=0) == PERSON_CHANNEL_INDEX
-                    mask = np.uint8(mask * 255)  # convert from bool to [0, 255] black & white image
+            try:
+                for batch_id, (img_batch, _) in enumerate(frames_loader):
+                    print(f'Processing batch {batch_id + 1} ({(batch_id + 1) * batch_size}/{len(dataset)} processed images).')
+                    img_batch = img_batch.to(device)  # shape: (N, 3, H, W)
+                    result_batch = segmentation_model(img_batch)['out'].to('cpu').numpy()  # shape: (N, 21, H, W) (21 - PASCAL VOC classes)
+                    for j, out_cpu in enumerate(result_batch):
+                        # When for the pixel position (x, y) the biggest (un-normalized) probability
+                        # lies in the channel PERSON_CHANNEL_INDEX we set the mask pixel to True
+                        mask = np.argmax(out_cpu, axis=0) == PERSON_CHANNEL_INDEX
+                        mask = np.uint8(mask * 255)  # convert from bool to [0, 255] black & white image
 
-                    processed_mask = post_process_mask(mask)  # simple heuristics (connected components, etc.)
+                        processed_mask = post_process_mask(mask)  # simple heuristics (connected components, etc.)
 
-                    filename = str(batch_id*batch_size+j).zfill(FILE_NAME_NUM_DIGITS) + mask_extension
-                    cv.imwrite(os.path.join(masks_dump_path, filename), mask)
-                    cv.imwrite(os.path.join(processed_masks_dump_path, filename), processed_mask)
+                        filename = str(batch_id*batch_size+j).zfill(FILE_NAME_NUM_DIGITS) + mask_extension
+                        cv.imwrite(os.path.join(masks_dump_path, filename), mask)
+                        cv.imwrite(os.path.join(processed_masks_dump_path, filename), processed_mask)
+            except Exception as e:
+                print(str(e))
+                print(f'Try using smaller segmentation batch size than the current one ({batch_size} images in batch).')
+                exit(0)
     else:
         print('Skipping mask computation, already done.')
 

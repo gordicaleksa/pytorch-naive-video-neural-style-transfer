@@ -5,11 +5,11 @@ import cv2 as cv
 import numpy as np
 
 
+from .constants import *
+
+
 # Using functions from utils package from pytorch-nst-feedforward submodule like load_image
 from utils import utils
-
-
-from .constants import *
 
 
 def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, other_stylized_frames_dir=None):
