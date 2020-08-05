@@ -69,9 +69,10 @@ def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_siz
     frames_loader = DataLoader(dataset, batch_size=batch_size)
 
     if len(os.listdir(masks_dump_path)) == 0 and len(os.listdir(processed_masks_dump_path)) == 0:
+        print('*' * 20, 'Person segmentation stage started', '*' * 20)
         with torch.no_grad():
             for batch_id, (img_batch, _) in enumerate(frames_loader):
-                print(f'Processing batch {batch_id + 1}.')
+                print(f'Processing batch {batch_id + 1} (batch size = {batch_size}).')
                 img_batch = img_batch.to(device)  # shape: (N, 3, H, W)
                 result_batch = segmentation_model(img_batch)['out'].to('cpu').numpy()  # shape: (N, 21, H, W) (21 - PASCAL VOC classes)
                 for j, out_cpu in enumerate(result_batch):
