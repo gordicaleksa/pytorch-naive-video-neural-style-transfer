@@ -8,11 +8,6 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pytorch-nst-feedforward'))
 
 
-from torchvision import models
-import torch
-from torchvision import datasets
-from torchvision import transforms
-from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2 as cv
@@ -20,16 +15,11 @@ import cv2 as cv
 
 # Using functions from utils package from pytorch-nst-feedforward submodule like load_image
 from utils import utils
-
+from pipeline_components.segmentation import extract_person_masks_from_frames
+from pipeline_components.video_creation import create_videos
+from pipeline_components.constants import *
 
 SUPPORTED_VIDEO_EXTENSIONS = ['.mp4']
-
-
-FILE_NAME_NUM_DIGITS = 6  # number of digits in the frame/mask names, e.g. for 6: '000023.jpg'
-
-
-IMAGENET_MEAN_1 = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-IMAGENET_STD_1 = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
 def stylization(frames_path):
@@ -101,104 +91,6 @@ def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, ot
     return {"dump_path_bkg_masked": dump_path_bkg_masked, "dump_path_person_masked": dump_path_person_masked}
 
 
-def create_videos(relevant_directories, frame_name_format, delete_source_imagery):
-    combined_img_bkg_pattern = os.path.join(relevant_directories['dump_path_bkg_masked'], frame_name_format)
-    combined_img_person_pattern = os.path.join(relevant_directories['dump_path_person_masked'], frame_name_format)
-    stylized_frame_pattern = os.path.join(relevant_directories['stylized_frames_path'], frame_name_format)
-
-    dump_path = os.path.join(relevant_directories['stylized_frames_path'], os.path.pardir)
-    combined_img_bkg_video_path = os.path.join(dump_path, 'overlayed_bkg.mp4')
-    combined_img_person_video_path = os.path.join(dump_path, 'overlayed_person.mp4')
-    stylized_frame_video_path = os.path.join(dump_path, 'stylized.mp4')
-
-    ffmpeg = 'ffmpeg'
-    if shutil.which(ffmpeg):  # if ffmpeg is in system path
-        audio_path = relevant_directories['audio_path']
-
-        def build_ffmpeg_call(img_pattern, audio_path, out_video_path):
-            input_options = ['-r', str(fps), '-i', img_pattern, '-i', audio_path]
-            encoding_options = ['-c:v', 'libx264', '-crf', '25', '-pix_fmt', 'yuv420p', '-c:a', 'copy']
-            pad_options = ['-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2']  # libx264 won't work for odd dimensions
-            return [ffmpeg] + input_options + encoding_options + pad_options + [out_video_path]
-
-        subprocess.call(build_ffmpeg_call(combined_img_bkg_pattern, audio_path, combined_img_bkg_video_path))
-        subprocess.call(build_ffmpeg_call(combined_img_person_pattern, audio_path, combined_img_person_video_path))
-        subprocess.call(build_ffmpeg_call(stylized_frame_pattern, audio_path, stylized_frame_video_path))
-    else:
-        raise Exception(f'{ffmpeg} not found in the system path, aborting.')
-
-    if delete_source_imagery:
-        shutil.rmtree(relevant_directories['dump_path_bkg_masked'])
-        shutil.rmtree(relevant_directories['dump_path_person_masked'])
-        shutil.rmtree(relevant_directories['stylized_frames_path'])
-        print('Deleting stylized/combined source images done.')
-
-
-def post_process_mask(mask):
-    # step1: morphological filtering (helps splitting parts that don't belong to the person blob)
-    kernel = np.ones((13, 13), np.uint8)  # hardcoded 13 simply gave nice results
-    opened_mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
-
-    # step2: isolate the person component (biggest component after background)
-    num_labels, labels, stats, _ = cv.connectedComponentsWithStats(opened_mask)
-
-    # step2.1: find the background component
-    h, _ = labels.shape  # get mask height
-    # find the most common index in the upper 10% of the image - I consider that to be the background index (heuristic)
-    discriminant_subspace = labels[:int(h/10), :]
-    bkg_index = np.argmax(np.bincount(discriminant_subspace.flatten()))
-
-    # step2.2: biggest component after background is person (that's a highly probable hypothesis)
-    blob_areas = []
-    for i in range(0, num_labels):
-        blob_areas.append(stats[i, cv.CC_STAT_AREA])
-    blob_areas = list(zip(range(len(blob_areas)), blob_areas))
-    blob_areas.sort(key=lambda tup: tup[1], reverse=True)  # sort from biggest to smallest area components
-    blob_areas = [a for a in blob_areas if a[0] != bkg_index]  # remove background component
-    person_index = blob_areas[0][0]  # biggest component that is not background is presumably person
-    processed_mask = np.uint8((labels == person_index) * 255)
-
-    return processed_mask
-
-
-def extract_masks_from_frames(model, device, processed_video_dir, frames_path, batch_size, mask_extension):
-    masks_dump_path = os.path.join(processed_video_dir, 'masks')
-    processed_masks_dump_path = os.path.join(processed_video_dir, 'processed_masks')
-    os.makedirs(masks_dump_path, exist_ok=True)
-    os.makedirs(processed_masks_dump_path, exist_ok=True)
-
-    PERSON_CHANNEL_INDEX = 15
-    transform = transforms.Compose([
-        transforms.Resize(540),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=IMAGENET_MEAN_1, std=IMAGENET_STD_1)
-    ])
-    dataset = datasets.ImageFolder(os.path.join(frames_path, os.path.pardir), transform=transform)
-    frames_loader = DataLoader(dataset, batch_size=batch_size)
-
-    if len(os.listdir(masks_dump_path)) == 0 and len(os.listdir(processed_masks_dump_path)) == 0:
-        with torch.no_grad():
-            for batch_id, (img_batch, _) in enumerate(frames_loader):
-                print(f'Processing batch {batch_id + 1}.')
-                img_batch = img_batch.to(device)  # shape: (N, 3, H, W)
-                result_batch = model(img_batch)['out'].to('cpu').numpy()  # shape: (N, 21, H, W) (21 - PASCAL VOC classes)
-                for j, out_cpu in enumerate(result_batch):
-                    # When for the pixel position (x, y) the biggest (un-normalized) probability
-                    # lies in the channel PERSON_CHANNEL_INDEX we set the mask pixel to True
-                    mask = np.argmax(out_cpu, axis=0) == PERSON_CHANNEL_INDEX
-                    mask = np.uint8(mask * 255)  # convert from bool to [0, 255] black & white image
-
-                    processed_mask = post_process_mask(mask)  # simple heuristics (connected components, etc.)
-
-                    filename = str(batch_id*batch_size+j).zfill(FILE_NAME_NUM_DIGITS) + mask_extension
-                    cv.imwrite(os.path.join(masks_dump_path, filename), mask)
-                    cv.imwrite(os.path.join(processed_masks_dump_path, filename), processed_mask)
-    else:
-        print('Skipping mask computation, already done.')
-
-    return {'processed_masks_dump_path': processed_masks_dump_path}
-
-
 if __name__ == "__main__":
     #
     # Fixed args - don't change these unless you have a good reason
@@ -216,11 +108,6 @@ if __name__ == "__main__":
     parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch", default=12)
     parser.add_argument("--delete_source_imagery", type=bool, help="Should delete imagery after videos are created", default=False)
     args = parser.parse_args()
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    # Currently the best segmentation model in PyTorch
-    segmentation_model = models.segmentation.deeplabv3_resnet101(pretrained=True).to(device).eval()
 
     #
     # For every video located under data/
@@ -259,7 +146,7 @@ if __name__ == "__main__":
                 # step2: Compute person masks and processed/refined masks
                 #
                 ts = time.time()
-                mask_dirs = extract_masks_from_frames(segmentation_model, device, processed_video_dir, frames_path, args.segmentation_batch_size, mask_extension)
+                mask_dirs = extract_person_masks_from_frames(processed_video_dir, frames_path, args.segmentation_batch_size, mask_extension)
                 print(f'Time elapsed computing masks: {(time.time() - ts):.3f} [s].')
 
                 #
@@ -288,7 +175,8 @@ if __name__ == "__main__":
                 relevant_directories.update(combined_dirs)
 
                 ts = time.time()
-                create_videos(relevant_directories, frame_name_format, args.delete_source_imagery)
+                video_metadata = {'fps': fps}
+                create_videos(video_metadata, relevant_directories, frame_name_format, args.delete_source_imagery)
                 print(f'Time elapsed creating videos: {(time.time() - ts):.3f} [s].')
             else:
                 raise Exception(f'{ffmpeg} not found in the system path, aborting.')
