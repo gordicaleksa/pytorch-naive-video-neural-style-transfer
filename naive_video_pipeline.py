@@ -31,29 +31,36 @@ if __name__ == "__main__":
     #
     # Modifiable args
     #
-    # todo: mask size width/height?
+    # todo: refactor
+    # todo: add readme
     parser = argparse.ArgumentParser()
+    # segmentation stage params (these 2 help with GPU VRAM problems or you can try changing the segmentation model)
     parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch", default=12)
-    parser.add_argument("--mask_size", type=int, help="Segmentation mask size", default=540)
-    parser.add_argument("--img_width", type=int, help="Stylized images width", default=500)
+    parser.add_argument("--segmentation_mask_width", type=int, help="Segmentation mask size", default=500)
+
+    # stylization stage params
+    parser.add_argument("--img_width", type=int, help="Stylized images width", default=600)
     parser.add_argument("--model_name", type=str, help="Model binary to use for stylization", default='mosaic_4e5_e2.pth')
+
+    # video creation stage params
     parser.add_argument("--delete_source_imagery", type=bool, help="Should delete imagery after videos are created", default=False)
     args = parser.parse_args()
 
-    # Basic error checking regarding nst submodule and model placement
+    # Basic error checking regarding NST submodule and model placement
     nst_submodule_path = os.path.join(os.path.dirname(__file__), 'pytorch-nst-feedforward')
     assert os.path.exists(nst_submodule_path), 'Please pull the pytorch-nst-feedforward submodule to use this project.'
     model_path = os.path.join(nst_submodule_path, 'models', 'binaries', args.model_name)
     assert os.path.exists(model_path), f'Could not find {model_path}. Make sure to first place the model in there.'
 
     #
-    # For every video located under data/
+    # For every video located under data/ run this pipeline
     #
     for element in os.listdir(data_path):
         maybe_video_path = os.path.join(data_path, element)
         if os.path.isfile(maybe_video_path) and os.path.splitext(maybe_video_path)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS:
             video_path = maybe_video_path
             video_name = os.path.basename(video_path).split('.')[0]
+            print('*' * 20, f'Processing video clip: {os.path.basename(video_path)}.', '*' * 20)
 
             processed_video_dir = os.path.join(data_path, 'clip_' + video_name)
             os.makedirs(processed_video_dir, exist_ok=True)
@@ -79,15 +86,15 @@ if __name__ == "__main__":
                 print('Stage 1/5 done (split video into frames and audio file).')
 
                 #
-                # step2: Compute person masks and processed/refined masks
+                # step2: Extract person segmentation mask from frames
                 #
                 ts = time.time()
-                mask_dirs = extract_person_masks_from_frames(processed_video_dir, frames_path, args.segmentation_batch_size, args.mask_size, mask_extension)
+                mask_dirs = extract_person_masks_from_frames(processed_video_dir, frames_path, args.segmentation_batch_size, args.segmentation_mask_width, mask_extension)
                 print('Stage 2/5 done (create person segmentation masks).')
                 print(f'Time elapsed computing masks: {(time.time() - ts):.3f} [s].')
 
                 #
-                # step3: Compute stylized frames
+                # step3: Stylize dumped video frames
                 #
                 ts = time.time()
                 style_dir = stylization(frames_path, args.model_name, args.img_width)
@@ -95,7 +102,7 @@ if __name__ == "__main__":
                 print(f'Time elapsed stylizing imagery: {(time.time() - ts):.3f} [s].')
 
                 #
-                # step4: Combine stylized frames and masks
+                # step4: Combine stylized frames with masks
                 #
                 relevant_directories = {}
                 relevant_directories['frames_path'] = frames_path

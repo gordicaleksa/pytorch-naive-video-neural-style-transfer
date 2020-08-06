@@ -17,10 +17,6 @@ from .constants import *
 from utils import utils
 
 
-IMAGENET_MEAN_1 = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-IMAGENET_STD_1 = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-
-
 def post_process_mask(mask):
     """
     Helper function for automatic mask (produced by the segmentation model) cleaning using heuristics.
@@ -52,7 +48,7 @@ def post_process_mask(mask):
     return processed_mask
 
 
-def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_size, mask_size, mask_extension):
+def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_size, segmentation_mask_width, mask_extension):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Currently the best segmentation model in PyTorch (officially implemented)
@@ -64,9 +60,10 @@ def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_siz
     os.makedirs(masks_dump_path, exist_ok=True)
     os.makedirs(processed_masks_dump_path, exist_ok=True)
 
-    PERSON_CHANNEL_INDEX = 15
+    h, w = utils.load_image(os.path.join(frames_path, os.listdir(frames_path)[0])).shape[:2]
+    segmentation_mask_height = int(h * (segmentation_mask_width / w))
     transform = transforms.Compose([
-        transforms.Resize(mask_size),
+        transforms.Resize((segmentation_mask_height, segmentation_mask_width)),
         transforms.ToTensor(),
         transforms.Normalize(mean=IMAGENET_MEAN_1, std=IMAGENET_STD_1)
     ])
