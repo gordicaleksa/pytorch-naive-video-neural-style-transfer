@@ -1,3 +1,15 @@
+"""
+    This script processes all of the .mp4 videos placed in the data/ directory.
+    Videos should contain 1 person talking/doing something - check data/example.mp4 for a concrete (short) example.
+
+    Processing consists out of 5 stages:
+        1. Dump frames and audio file into data/clip_<video_name>
+        2. Create person segmentation masks
+        3. Stylize dumped frames using my other NST repo (pytorch-nst-feedforward) integrated as a git submodule
+        4. Combine stylized frames with masks (mask out background (1) images and mask out person (2) images)
+        5. Create 2 videos for (1) and (2)
+"""
+
 import argparse
 import subprocess
 import time
@@ -70,7 +82,6 @@ if __name__ == "__main__":
             frames_path = os.path.join(processed_video_dir, 'frames', 'frames')
             os.makedirs(frames_path, exist_ok=True)
 
-
             cap = cv.VideoCapture(video_path)
             fps = int(cap.get(cv.CAP_PROP_FPS))
 
@@ -105,11 +116,9 @@ if __name__ == "__main__":
             #
             # step4: Combine stylized frames with masks
             #
-            relevant_directories = {}
-            relevant_directories['frames_path'] = frames_path
+            relevant_directories = {'frames_path': frames_path, 'audio_path': audio_dump_path}
             relevant_directories.update(mask_dirs)
             relevant_directories.update(style_dir)
-            relevant_directories['audio_path'] = audio_dump_path
 
             ts = time.time()
             combined_dirs = stylized_frames_mask_combiner(relevant_directories, frame_extension)
