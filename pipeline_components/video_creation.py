@@ -4,13 +4,17 @@ import subprocess
 
 
 def create_videos(video_metadata, relevant_directories, frame_name_format, delete_source_imagery):
-    combined_img_bkg_pattern = os.path.join(relevant_directories['dump_path_bkg_masked'], frame_name_format)
-    combined_img_person_pattern = os.path.join(relevant_directories['dump_path_person_masked'], frame_name_format)
-    stylized_frame_pattern = os.path.join(relevant_directories['stylized_frames_path'], frame_name_format)
+    stylized_frames_path = relevant_directories['stylized_frames_path']
+    dump_path_bkg_masked = relevant_directories['dump_path_bkg_masked']
+    dump_path_person_masked = relevant_directories['dump_path_person_masked']
 
-    dump_path = os.path.join(relevant_directories['stylized_frames_path'], os.path.pardir)
-    combined_img_bkg_video_path = os.path.join(dump_path, 'overlayed_bkg.mp4')
-    combined_img_person_video_path = os.path.join(dump_path, 'overlayed_person.mp4')
+    combined_img_bkg_pattern = os.path.join(dump_path_bkg_masked, frame_name_format)
+    combined_img_person_pattern = os.path.join(dump_path_person_masked, frame_name_format)
+    stylized_frame_pattern = os.path.join(stylized_frames_path, frame_name_format)
+
+    dump_path = os.path.join(stylized_frames_path, os.path.pardir)
+    combined_img_bkg_video_path = os.path.join(dump_path, f'{os.path.basename(dump_path_bkg_masked)}.mp4')
+    combined_img_person_video_path = os.path.join(dump_path, f'{os.path.basename(dump_path_person_masked)}.mp4')
     stylized_frame_video_path = os.path.join(dump_path, 'stylized.mp4')
 
     ffmpeg = 'ffmpeg'
@@ -30,7 +34,7 @@ def create_videos(video_metadata, relevant_directories, frame_name_format, delet
         raise Exception(f'{ffmpeg} not found in the system path, aborting.')
 
     if delete_source_imagery:
-        shutil.rmtree(relevant_directories['dump_path_bkg_masked'])
-        shutil.rmtree(relevant_directories['dump_path_person_masked'])
-        shutil.rmtree(relevant_directories['stylized_frames_path'])
+        shutil.rmtree(dump_path_bkg_masked)
+        shutil.rmtree(dump_path_person_masked)
+        shutil.rmtree(stylized_frames_path)
         print('Deleting stylized/combined source images done.')

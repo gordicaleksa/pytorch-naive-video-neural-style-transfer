@@ -12,7 +12,7 @@ from .constants import *
 from utils import utils
 
 
-def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, other_stylized_frames_dir=None):
+def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, other_style=None):
     # in dirs
     frames_dir = relevant_directories['frames_path']
     mask_frames_dir = relevant_directories['processed_masks_dump_path']
@@ -20,14 +20,15 @@ def stylized_frames_mask_combiner(relevant_directories, dump_frame_extension, ot
 
     # out dirs (we'll dump combined imagery here)
     dump_path = os.path.join(stylized_frames_dir, os.path.pardir)
-    dump_path_bkg_masked = os.path.join(dump_path, 'composed_background_masked')
-    dump_path_person_masked = os.path.join(dump_path, 'composed_person_masked')
+    model_name_suffix = '_' + os.path.basename(os.path.split(other_style)[0]) if other_style is not None else ''
+    dump_path_bkg_masked = os.path.join(dump_path, 'composed_background_masked' + model_name_suffix)
+    dump_path_person_masked = os.path.join(dump_path, 'composed_person_masked' + model_name_suffix)
     os.makedirs(dump_path_bkg_masked, exist_ok=True)
     os.makedirs(dump_path_person_masked, exist_ok=True)
 
     # if other_stylized_frames_path exists overlay frames are differently styled frames and not original frames
-    if other_stylized_frames_dir is not None:
-        overlay_frames_dir = other_stylized_frames_dir
+    if other_style is not None:
+        overlay_frames_dir = other_style
     else:
         overlay_frames_dir = frames_dir
 

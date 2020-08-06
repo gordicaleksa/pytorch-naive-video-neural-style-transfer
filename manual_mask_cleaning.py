@@ -5,15 +5,6 @@ import matplotlib.pyplot as plt
 import cv2 as cv
 
 
-def load_image(filename, size=None, scale=None):
-    img = Image.open(filename)
-    if size is not None:
-        img = img.resize((size, size), Image.ANTIALIAS)
-    elif scale is not None:
-        img = img.resize((int(img.size[0] / scale), int(img.size[1] / scale)), Image.ANTIALIAS)
-    return np.array(img)
-
-
 if __name__=="__main__":
     root = r'C:\tmp_data_dir\YouTube\Videos\NST_3_Optimization\camera_capture\intro_part_of_outro\intro_split\clip_1\processed_masks_refined' # r"C:\tmp_data_dir\YouTube\NST\Repos\examples\fast_neural_style\my_videos\NST_v2\clip_4\processed_masks_refined"
     clear_mask_path = r"C:\tmp_data_dir\YouTube\NST\Repos\examples\fast_neural_style\my_videos\NST_v2\clip_4\clear_mask9.png"

@@ -1,5 +1,5 @@
 """
-    This script processes all of the .mp4 videos placed in the data/ directory.
+    This script processes all of the .mp4 videos (if --specific_videos is None) placed in the data/ directory.
     Videos should contain 1 person talking/doing something - check data/example.mp4 for a concrete (short) example.
 
     Processing consists out of 5 stages:
@@ -43,9 +43,11 @@ if __name__ == "__main__":
     # Modifiable args
     #
     # todo: refactor
-    # todo: add readme
+    # todo: readme
     # todo: improve manual cleaning script
     parser = argparse.ArgumentParser()
+    parser.add_argument("--specific_videos", type=str, help="Process only specific videos in data/", default=['example1.mp4'])
+
     # segmentation stage params (these 2 help with GPU VRAM problems or you can try changing the segmentation model)
     parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch", default=12)
     parser.add_argument("--segmentation_mask_width", type=int, help="Segmentation mask size", default=500)
@@ -53,6 +55,10 @@ if __name__ == "__main__":
     # stylization stage params
     parser.add_argument("--img_width", type=int, help="Stylized images width", default=600)
     parser.add_argument("--model_name", type=str, help="Model binary to use for stylization", default='mosaic_4e5_e2.pth')
+
+    # combine stage params
+    # Put an absolute path to stylized frames (corresponding to the same video) if you wish to combine multiple styles.
+    parser.add_argument("--other_style", type=str, help="Path to stylized frames (default is original frame)", default=None)
 
     # video creation stage params
     parser.add_argument("--delete_source_imagery", type=bool, help="Should delete imagery after videos are created", default=False)
@@ -74,7 +80,12 @@ if __name__ == "__main__":
         if os.path.isfile(maybe_video_path) and os.path.splitext(maybe_video_path)[1].lower() in SUPPORTED_VIDEO_EXTENSIONS:
             video_path = maybe_video_path
             video_name = os.path.basename(video_path).split('.')[0]
-            print('*' * 20, f'Processing video clip: {os.path.basename(video_path)}.', '*' * 20)
+
+            if args.specific_videos is not None and os.path.basename(video_path) not in args.specific_videos:
+                print(f'Video {os.path.basename(video_path)} not in the specified list of videos {args.specific_videos}. Skipping.')
+                continue
+
+            print('*' * 20, f'Processing video clip: {os.path.basename(video_path)}', '*' * 20)
 
             processed_video_dir = os.path.join(data_path, 'clip_' + video_name)
             os.makedirs(processed_video_dir, exist_ok=True)
@@ -121,7 +132,7 @@ if __name__ == "__main__":
             relevant_directories.update(style_dir)
 
             ts = time.time()
-            combined_dirs = stylized_frames_mask_combiner(relevant_directories, frame_extension)
+            combined_dirs = stylized_frames_mask_combiner(relevant_directories, frame_extension, args.other_style)
             print('Stage 4/5 done (combine masks with stylized frames).')
             print(f'Time elapsed masking stylized imagery: {(time.time() - ts):.3f} [s].')
 
