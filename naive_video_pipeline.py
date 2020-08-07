@@ -1,13 +1,15 @@
 """
-    This script processes all of the .mp4 videos (if --specific_videos is None) placed in the data/ directory.
+    This script processes all of the .mp4 videos (if --specific_videos is set to None) placed in the data/ directory.
+
+    Recommended:
     Videos should contain 1 person talking/doing something - check data/example.mp4 for a concrete (short) example.
 
     Processing consists out of 5 stages:
         1. Dump frames and audio file into data/clip_<video_name>
         2. Create person segmentation masks
-        3. Stylize dumped frames using my other NST repo (pytorch-nst-feedforward) integrated as a git submodule
-        4. Combine stylized frames with masks (mask out background (1) images and mask out person (2) images)
-        5. Create 2 videos for (1) and (2)
+        3. Stylize dumped frames using external NST repo (pytorch-nst-feedforward) integrated as a git submodule
+        4. Combine stylized frames with masks (mask out background (1) and mask out person (2))
+        5. Create videos for images (1) and (2)
 """
 
 import argparse
@@ -42,19 +44,16 @@ if __name__ == "__main__":
     #
     # Modifiable args
     #
-    # todo: refactor
-    # todo: readme
-    # todo: improve manual cleaning script
     parser = argparse.ArgumentParser()
     parser.add_argument("--specific_videos", type=str, help="Process only specific videos in data/", default=['example.mp4'])
 
     # segmentation stage params (these 2 help with GPU VRAM problems or you can try changing the segmentation model)
-    parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch (segmentation)", default=12)
+    parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch (segmentation)", default=3)
     parser.add_argument("--segmentation_mask_width", type=int, help="Segmentation mask size", default=500)
 
     # stylization stage params
     parser.add_argument("--img_width", type=int, help="Stylized images width", default=500)
-    parser.add_argument("--stylization_batch_size", type=int, help="Number of images in a batch (stylization)", default=15)
+    parser.add_argument("--stylization_batch_size", type=int, help="Number of images in a batch (stylization)", default=3)
     parser.add_argument("--model_name", type=str, help="Model binary to use for stylization", default='mosaic_4e5_e2.pth')
 
     # combine stage params
@@ -88,6 +87,7 @@ if __name__ == "__main__":
 
             print('*' * 20, f'Processing video clip: {os.path.basename(video_path)}', '*' * 20)
 
+            # Create destination directory for this video where everything related to that video will be stored
             processed_video_dir = os.path.join(data_path, 'clip_' + video_name)
             os.makedirs(processed_video_dir, exist_ok=True)
 

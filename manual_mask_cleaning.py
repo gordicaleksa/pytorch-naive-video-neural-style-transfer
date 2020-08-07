@@ -1,9 +1,9 @@
 """
-    Automatic segmentation is not always perfect, this scripts helps by providing semi-automatic cleaning.
-    Final possibility is using some editing software and editing masks there (high cost).
+    Automatic segmentation is not always perfect, this scripts helps by providing semi-automatic mask cleaning.
+    Final option is using some editing software and editing masks there (high cost).
 
     Usual workflow:
-        1. Copy processed_masks/ into processed_masks_refined/ (as this script has destructive process)
+        1. Copy processed_masks/ into processed_masks_refined/ (as this script is destructive)
         2. Manually inspect masks and find the range that can be filled/deleted with a rectangular/custom mask
         3. Tweak the params in top of the main function and run (start in debug mode if you're not sure how it works)
 """
