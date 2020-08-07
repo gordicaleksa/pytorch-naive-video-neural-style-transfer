@@ -74,8 +74,10 @@ def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_siz
         print('*' * 20, 'Person segmentation stage started', '*' * 20)
         with torch.no_grad():
             try:
+                processed_imgs_cnt = 0
                 for batch_id, (img_batch, _) in enumerate(frames_loader):
-                    print(f'Processing batch {batch_id + 1} ({(batch_id + 1) * batch_size}/{len(dataset)} processed images).')
+                    processed_imgs_cnt += len(img_batch)
+                    print(f'Processing batch {batch_id + 1} ({processed_imgs_cnt}/{len(dataset)} processed images).')
                     img_batch = img_batch.to(device)  # shape: (N, 3, H, W)
                     result_batch = segmentation_model(img_batch)['out'].to('cpu').numpy()  # shape: (N, 21, H, W) (21 - PASCAL VOC classes)
                     for j, out_cpu in enumerate(result_batch):
@@ -92,7 +94,7 @@ def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_siz
             except Exception as e:
                 print(str(e))
                 print(f'Try using smaller segmentation batch size than the current one ({batch_size} images in batch).')
-                exit(0)
+                exit(-1)
     else:
         print('Skipping mask computation, already done.')
 

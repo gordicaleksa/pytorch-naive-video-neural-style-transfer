@@ -46,14 +46,15 @@ if __name__ == "__main__":
     # todo: readme
     # todo: improve manual cleaning script
     parser = argparse.ArgumentParser()
-    parser.add_argument("--specific_videos", type=str, help="Process only specific videos in data/", default=['example1.mp4'])
+    parser.add_argument("--specific_videos", type=str, help="Process only specific videos in data/", default=['example.mp4'])
 
     # segmentation stage params (these 2 help with GPU VRAM problems or you can try changing the segmentation model)
-    parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch", default=12)
+    parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch (segmentation)", default=12)
     parser.add_argument("--segmentation_mask_width", type=int, help="Segmentation mask size", default=500)
 
     # stylization stage params
-    parser.add_argument("--img_width", type=int, help="Stylized images width", default=600)
+    parser.add_argument("--img_width", type=int, help="Stylized images width", default=500)
+    parser.add_argument("--stylization_batch_size", type=int, help="Number of images in a batch (stylization)", default=15)
     parser.add_argument("--model_name", type=str, help="Model binary to use for stylization", default='mosaic_4e5_e2.pth')
 
     # combine stage params
@@ -120,7 +121,7 @@ if __name__ == "__main__":
             # step3: Stylize dumped video frames
             #
             ts = time.time()
-            style_dir = stylization(frames_path, args.model_name, args.img_width)
+            style_dir = stylization(frames_path, args.model_name, args.img_width, args.stylization_batch_size)
             print('Stage 3/5 done (stylize dumped video frames).')
             print(f'Time elapsed stylizing imagery: {(time.time() - ts):.3f} [s].')
 
