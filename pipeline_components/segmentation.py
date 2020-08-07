@@ -94,7 +94,7 @@ def extract_person_masks_from_frames(processed_video_dir, frames_path, batch_siz
             except Exception as e:
                 print(str(e))
                 print(f'Try using smaller segmentation batch size than the current one ({batch_size} images in batch).')
-                exit(-1)
+                exit(ERROR_CODE)
     else:
         print('Skipping mask computation, already done.')
 
