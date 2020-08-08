@@ -1,5 +1,5 @@
 ## Naive Video Fast NST :movie_camera: + :zap::computer: + :art: = :heart:
-This repo is a wrapper around [my implementation of fast NST](https://github.com/gordicaleksa/pytorch-nst-feedforward) (for static images) and additionally provides:
+This repo is a wrapper around [my implementation of fast NST](https://github.com/gordicaleksa/pytorch-nst-feedforward) (for static images) and it additionally provides:
 1. Support for creating (naive - no temporal loss included) videos
 2. Support for creating segmentation masks for the person talking
 
@@ -10,9 +10,11 @@ It's an accompanying repo for [this video series on YouTube](https://www.youtube
 alt="NST Intro" width="480" height="360" border="10" /></a>
 </p>
 
-The first video of the series was created exactly using this method (I also used ReCoNet for 1 part).
+The first video of the series was created exactly using this method (I also used ReCoNet for 1 part of the video).
 
 ## Combining stylized frames with original frames (via seg masks)
+
+On the left you can see typical NST output and the 2 other images on the right were created using segmentation masks.
 
 <p align="center">
 <img src="data/examples/stylized.jpg" width="270px">
@@ -20,23 +22,32 @@ The first video of the series was created exactly using this method (I also used
 <img src="data/examples/bkg_masked.jpg" width="270px">
 </p>
 
-And these were produced using this segmentation mask:
+They were created using this segmentation mask (and original frame as the overlay)
 
 <p align="center">
 <img src="data/examples/mask.png" width="400px">
 </p>
 
-It's not perfect but this one was created in a fully automatic fashion.
+It's not perfect but it was created in a **fully automatic** fashion. <br/>
+I intentionally show-cased a non-perfect segmentation mask here to display some problems I had (part of the world map behind me had a skin-like color).
 
 ## Combining 2 types of stylized frames (via seg masks)
 
-Similarly...
+Similarly instead of using the original frame as the overlay you can use some other style:
+
+<p align="center">
+<img src="data/examples/other_style/edtanoisl_starry.jpg" width="270px">
+<img src="data/examples/other_style/editaonisl_mosaic.jpg" width="270px">
+<img src="data/examples/other_style/mosaic_starry.jpg" width="270px">
+</p>
 
 ## Setup
 
 1. Open Anaconda Prompt and navigate into project directory `cd path_to_repo`
 2. Run `conda env create` from project directory (this will create a brand new conda environment).
 3. Run `activate pytorch-nst-fast` (if you want to run scripts from your console otherwise set the interpreter in your IDE)
+4. git submodule (include into clone?)
+5. copy models into binaries
 
 That's it! It should work out-of-the-box executing environment.yml file which deals with dependencies.
 
@@ -47,6 +58,8 @@ PyTorch package will pull some version of CUDA with it, but it is highly recomme
 Follow through points 1 and 2 of [this setup](https://github.com/Petlja/PSIML/blob/master/docs/MachineSetup.md) and use the most up-to-date versions of Miniconda and CUDA/cuDNN (I recommend CUDA 10.1 or 10.2 as those are compatible with PyTorch 1.5, which is used in this repo, and newest compatible cuDNN).
 
 ## Usage
+
+Using other style...
 
 # Debugging
 Q: My style/content loss curves just spiked in the middle of training?<br/>
