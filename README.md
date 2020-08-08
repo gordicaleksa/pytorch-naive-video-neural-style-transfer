@@ -3,6 +3,8 @@ This repo is a wrapper around [my implementation of fast NST](https://github.com
 1. Support for creating (naive - no temporal loss included) videos
 2. Support for creating segmentation masks for the person talking
 
+You **just place your videos in data/ directory** and **you get stylized/segmented videos** - easy as that. <br/>
+
 It's an accompanying repo for [this video series on YouTube](https://www.youtube.com/watch?v=S78LQebx6jo&list=PLBoQnSflObcmbfshq9oNs41vODgXG-608).
 
 <p align="left">
@@ -14,7 +16,7 @@ The first video of the series was created exactly using this method (I also used
 
 ## Combining stylized frames with original frames (via seg masks)
 
-On the left you can see typical NST output and the 2 other images on the right were created using segmentation masks.
+On the left you can see typical NST output and the 2 other images on the right were created using masks.
 
 <p align="center">
 <img src="data/examples/stylized.jpg" width="270px">
@@ -22,14 +24,15 @@ On the left you can see typical NST output and the 2 other images on the right w
 <img src="data/examples/bkg_masked.jpg" width="270px">
 </p>
 
-They were created using this segmentation mask (and original frame as the overlay)
+They were created using this segmentation mask (and original frame as the overlay):
 
-<p align="center">
-<img src="data/examples/mask.png" width="400px">
+<p align="left">
+<img src="data/examples/mask.png" width="270px">
 </p>
 
-It's not perfect but it was created in a **fully automatic** fashion. <br/>
-I intentionally show-cased a non-perfect segmentation mask here to display some problems I had (part of the world map behind me had a skin-like color).
+It's not perfect but it was created in a **fully automatic** fashion. <br/><br/>
+
+*Note: I intentionally show-cased a non-perfect segmentation mask here to display some problems I had (part of the world map behind me had a skin-like color).*
 
 ## Combining 2 types of stylized frames (via seg masks)
 
