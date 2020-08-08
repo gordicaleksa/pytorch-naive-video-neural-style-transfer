@@ -66,7 +66,7 @@ Follow through points 1 and 2 of [this setup](https://github.com/Petlja/PSIML/bl
 
 ## Usage
 
-After you're done with the setup you can just run this: `python naive_video_pipeline.py`
+After you're done with the setup you can just run this: `python naive_video_pipeline.py` <br/>
 And it will create results for the default `example.mp4` video in `data/clip_example/` <br/>
 
 To run the pipeline on your own videos do the following:
@@ -84,7 +84,7 @@ The output you can expect after processing `my_video.mp4` (which can be found in
 4. `<model_name>/` - contains stylized and combined imagery and videos **(this is what you want)**
 
 <p align="left">
-<img src="data/examples/usage_section/structure.PNG" width="350px">
+<img src="data/examples/usage_section/structure.png" width="350px">
 </p>
 
 ----
