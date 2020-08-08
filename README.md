@@ -1,4 +1,4 @@
-## Naive Video Fast NST :movie_camera: + :zap::computer: + :art: = :heart:
+## Naive Video - Fast NST :movie_camera: + :zap::computer: + :art: = :heart:
 This repo is a wrapper around [my implementation of fast NST](https://github.com/gordicaleksa/pytorch-nst-feedforward) (for static images) and it additionally provides:
 1. Support for creating (naive - no temporal loss included) videos
 2. Support for creating segmentation masks for the person talking
@@ -30,7 +30,7 @@ They were created using this segmentation mask (and original frame as the overla
 <img src="data/examples/mask.png" width="270px">
 </p>
 
-It's not perfect but it was created in a **fully automatic** fashion. <br/><br/>
+It's not perfect but it was created in a **fully automatic** fashion. <br/>
 
 *Note: I intentionally show-cased a non-perfect segmentation mask here to display some problems I had (part of the world map behind me had a skin-like color).*
 
@@ -46,13 +46,17 @@ Similarly instead of using the original frame as the overlay you can use some ot
 
 ## Setup
 
-1. Open Anaconda Prompt and navigate into project directory `cd path_to_repo`
+1. `git clone --recurse-submodules https://github.com/gordicaleksa/pytorch-naive-video-nst`
+2. `cd pytorch-naive-video-nst`
 2. Run `conda env create` from project directory (this will create a brand new conda environment).
-3. Run `activate pytorch-nst-fast` (if you want to run scripts from your console otherwise set the interpreter in your IDE)
-4. git submodule (include into clone?)
-5. copy models into binaries
+3. Run `activate pytorch-video-naive` (for running scripts from your console or set the interpreter in your IDE)
+4. Run `resource_downloader.py` (from pytorch-nst-feedforward submodule) it will download 4 pretrained models
+5. Make sure you have **ffmpeg** in your system path (used for creating videos)
 
-That's it! It should work out-of-the-box executing environment.yml file which deals with dependencies.
+That's it! It should work out-of-the-box executing environment.yml file which deals with dependencies.<br/>
+
+Note: There is 1 git submodule (fast NST project) in this repo. That's why you'll need `--recurse-submodules` <br/>
+check out [this SO link](https://stackoverflow.com/questions/3796927/how-to-git-clone-including-submodules) if you run into any problems.
 
 -----
 
@@ -64,7 +68,7 @@ Follow through points 1 and 2 of [this setup](https://github.com/Petlja/PSIML/bl
 
 Using other style...
 
-# Debugging
+## Debugging
 Q: My style/content loss curves just spiked in the middle of training?<br/>
 A: 2 options: a) rerun the training (optimizer got into a bad state) b) if that doesn't work lower your style weight
 
