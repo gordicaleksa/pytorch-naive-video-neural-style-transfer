@@ -55,8 +55,8 @@ Similarly instead of using the original frame as the overlay you can use some ot
 
 That's it! It should work out-of-the-box executing environment.yml file which deals with dependencies.<br/>
 
-Note: There is 1 git submodule (fast NST project) in this repo. That's why you'll need `--recurse-submodules` <br/>
-check out [this SO link](https://stackoverflow.com/questions/3796927/how-to-git-clone-including-submodules) if you run into any problems.
+*Note: There is 1 git submodule (fast NST project) in this repo. That's why you'll need `--recurse-submodules` <br/>
+check out [this SO link](https://stackoverflow.com/questions/3796927/how-to-git-clone-including-submodules) if you run into any problems.*
 
 -----
 
@@ -66,20 +66,29 @@ Follow through points 1 and 2 of [this setup](https://github.com/Petlja/PSIML/bl
 
 ## Usage
 
-Using other style...
+After you're done with the setup you can just run this: <br/>
+`python naive_video_pipeline.py` <br/>
+And it will create results for the default `example.mp4` video in `data/clip_example/` <br/>
 
+To run the pipeline on your own videos do the following:
+1. Place them under `data/`
+2. Specify which ones you want to process via `--specific_videos` argument like: ['my_video1.mp4', my_video2.mp4']
+That's it! If you bump into `CUDA out of memory` errors check out the Debugging section **(easy to fix)**. <br/>
+
+----
+
+The output you can expect after processing `my_video.mp4` (which can be found in `data/clip_my_video/`):
+1. `frames/` - dumped frames from your video
+2. `masks/` and `processed_masks` - contain segmentation masks for the person in the video
+3. `my_video.aac` - sound clip from your video
+4. `<model_name>/` - contains stylized and combined imagery and videos **(this is what you want)**
+
+If you want to combine your videos with some other style instead of overlaying the original frame <br/>
+just set the `--other_style` to the absolute path of your desired stylized frames.
+ 
 ## Debugging
-Q: My style/content loss curves just spiked in the middle of training?<br/>
-A: 2 options: a) rerun the training (optimizer got into a bad state) b) if that doesn't work lower your style weight
-
-<p align="left">
-<img src="data/examples/readme_pics/spike.png" width="683"/>
-</p>
-
-Q: How can I see the exact parameters that you used to train your models?<br/>
-A: Just run the model in the `stylization_script.py`, training metadata will be printed out to the output console.
-
-# todo: add GIFs to readme
+Q: I'm getting `CUDA out of memory` error in the segmentation/stylization stage what should I do?<br/>
+A: 2 options: a) make the image width smaller b) make the batch size smaller
 
 ## Citation
 
