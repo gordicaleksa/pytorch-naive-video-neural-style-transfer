@@ -66,6 +66,8 @@ Follow through points 1 and 2 of [this setup](https://github.com/Petlja/PSIML/bl
 
 ## Usage
 
+<img src="data/examples/gifs/person_masked.gif" />
+
 After you're done with the setup you can just run this: `python naive_video_pipeline.py` <br/>
 And it will create results for the default `example.mp4` video in `data/clip_example/` <br/>
 
