@@ -66,13 +66,13 @@ Follow through points 1 and 2 of [this setup](https://github.com/Petlja/PSIML/bl
 
 ## Usage
 
-After you're done with the setup you can just run this: <br/>
-`python naive_video_pipeline.py` <br/>
+After you're done with the setup you can just run this: `python naive_video_pipeline.py`
 And it will create results for the default `example.mp4` video in `data/clip_example/` <br/>
 
 To run the pipeline on your own videos do the following:
 1. Place them under `data/`
-2. Specify which ones you want to process via `--specific_videos` argument like: ['my_video1.mp4', my_video2.mp4']
+2. Specify which ones you want to process via `--specific_videos` argument like: ['my_video1.mp4', my_video2.mp4'] <br/>
+
 That's it! If you bump into `CUDA out of memory` errors check out the Debugging section **(easy to fix)**. <br/>
 
 ----
@@ -83,8 +83,14 @@ The output you can expect after processing `my_video.mp4` (which can be found in
 3. `my_video.aac` - sound clip from your video
 4. `<model_name>/` - contains stylized and combined imagery and videos **(this is what you want)**
 
-If you want to combine your videos with some other style instead of overlaying the original frame <br/>
-just set the `--other_style` to the absolute path of your desired stylized frames.
+<p align="left">
+<img src="data/examples/usage_section/structure.PNG" width="350px">
+</p>
+
+----
+
+If you want to combine your videos with some other style instead of overlaying the original frame, <br/>
+set the `--other_style` to the the name of the model whose frames you want to use as the overlay. <br/>
  
 ## Debugging
 Q: I'm getting `CUDA out of memory` error in the segmentation/stylization stage what should I do?<br/>

@@ -48,8 +48,8 @@ if __name__ == "__main__":
     parser.add_argument("--specific_videos", type=str, help="Process only specific videos in data/", default=['example.mp4'])
 
     # segmentation stage params (these 2 help with GPU VRAM problems or you can try changing the segmentation model)
-    parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch (segmentation)", default=3)
     parser.add_argument("--segmentation_mask_width", type=int, help="Segmentation mask size", default=500)
+    parser.add_argument("--segmentation_batch_size", type=int, help="Number of images in a batch (segmentation)", default=3)
 
     # stylization stage params
     parser.add_argument("--img_width", type=int, help="Stylized images width", default=500)
@@ -57,8 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str, help="Model binary to use for stylization", default='mosaic_4e5_e2.pth')
 
     # combine stage params
-    # Put an absolute path to stylized frames (corresponding to the same video) if you wish to combine multiple styles.
-    parser.add_argument("--other_style", type=str, help="Path to stylized frames (default is original frame)", default=None)
+    parser.add_argument("--other_style", type=str, help="Model name without (like 'candy.pth') whose frames you want to use as an overlay", default=None)
 
     # video creation stage params
     parser.add_argument("--delete_source_imagery", type=bool, help="Should delete imagery after videos are created", default=False)
@@ -68,7 +67,7 @@ if __name__ == "__main__":
     nst_submodule_path = os.path.join(os.path.dirname(__file__), 'pytorch-nst-feedforward')
     assert os.path.exists(nst_submodule_path), 'Please pull the pytorch-nst-feedforward submodule to use this project.'
     model_path = os.path.join(nst_submodule_path, 'models', 'binaries', args.model_name)
-    assert os.path.exists(model_path), f'Could not find {model_path}. Make sure to first manually place the model in there.'
+    assert os.path.exists(model_path), f'Could not find {model_path}. Make sure to place pretrained models in there.'
     ffmpeg = 'ffmpeg'
     assert shutil.which(ffmpeg), f'{ffmpeg} not found in the system path. Please add it before running this script.'
 
@@ -133,7 +132,14 @@ if __name__ == "__main__":
             relevant_directories.update(style_dir)
 
             ts = time.time()
-            combined_dirs = stylized_frames_mask_combiner(relevant_directories, frame_extension, args.other_style)
+            if args.other_style is not None:
+                args.other_style = args.other_style.split('.')[0] if args.other_style.endswith('.pth') else args.other_style
+                other_style = os.path.join(processed_video_dir, args.other_style, 'stylized')
+                assert os.path.exists(other_style) and os.path.isdir(other_style), f'You first need to create stylized frames for the model {args.other_style}.pth so that you can use it as the other style for this model {args.model_name}.'
+            else:
+                other_style = None
+
+            combined_dirs = stylized_frames_mask_combiner(relevant_directories, frame_extension, other_style)
             print('Stage 4/5 done (combine masks with stylized frames).')
             print(f'Time elapsed masking stylized imagery: {(time.time() - ts):.3f} [s].')
 
